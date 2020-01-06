@@ -1,8 +1,8 @@
 import os
 import math
-
+import random
 import pygame
-
+import time
 # from mob_1 import first_mob
 
 path = [[-50, 455], [154, 455], [200, 495], [710, 507], [767, 424], [710, 298], [450, 298], [390, 205],
@@ -16,17 +16,21 @@ TOWER_BUILDING_SPRITES = pygame.sprite.Group()
 TOWER_BOUGHT = pygame.sprite.Group()
 TOWER_BOUGHT_RING = pygame.sprite.Group()
 ARCHERS = pygame.sprite.Group()
+ARROW = pygame.sprite.Group()
+time_now = time.time()
 BUILDING_PLACE_COORDS = [[400, 385], [580, 380], [495, 595], [850, 380], [497, 160], [685, 157], [870, 155]]
+waves = [20, 30, 25, 40, 50]
 
 
 def load_image(name):
     fullname = os.path.join('img', name)
     image = pygame.image.load(fullname)
     return image
-
+arrow_image = load_image("arrow.png")
+arrow_image = pygame.transform.rotate(arrow_image, 90)
 
 class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
+    def __init__(self, sheet, columns, rows, x, y, speed_increase, health, scale_x, scale_y):
         super().__init__(mob_sprites)
         self.frames = []
         self.frames_kill = []
@@ -34,7 +38,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cut_sheet(sheet, columns, rows)
         self.cut_sheet(load_image("kill_enemy.png"), 3, 1)
         for i in range(len(self.frames)):
-            self.frames[i] = pygame.transform.scale(self.frames[i], (40, 40))
+            self.frames[i] = pygame.transform.scale(self.frames[i], (scale_x, scale_y))
         for i in range(len(self.frames_kill)):
             self.frames_kill[i] = pygame.transform.scale(self.frames_kill[i], (60, 40))
         self.cur_frame = 0
@@ -42,13 +46,14 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.x = path[0][0]
         self.y = path[0][1]
         self.kill_enemy = 0
-        self.speed_increase = 10
+        self.speed_increase = speed_increase
         self.rect = self.rect.move(x, y)
         self.flipped = False
-        self.health = 10
+        self.health = health
         self.cur_frame_kill = 0
         self.move_enemy = True
-
+        self.count_animation = 3
+        self.count_animation_1 = 0
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -64,7 +69,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
                         frame_location, self.rect.size)))
 
     def update(self):
-        print(len(self.frames_kill))
+        self.count_animation_1 += 1
         if self.kill_enemy == 3:
             self.kill()
         if self.health <= 0:
@@ -72,9 +77,10 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.cur_frame_kill = (self.cur_frame_kill + 1) % len(self.frames_kill)
             self.image = self.frames_kill[self.cur_frame_kill]
             self.move_enemy = False
-        else:
+        elif self.count_animation == self.count_animation_1:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
+            self.count_animation_1 = 0
         if self.x >= 1270:
             self.kill()
 
@@ -120,7 +126,6 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.rect.x = self.x
             self.rect.y = self.y
 
-
 class ArcherTower(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(ARCHERS)
@@ -136,10 +141,11 @@ class ArcherTower(pygame.sprite.Sprite):
         self.rect = self.rect.move(x, y)
         self.flipped = False
         self.flipped_x = 0
-        self.radius = 170
-        # self.image = pygame.Surface((2 * self.radius, 2 * self.radius), pygame.SRCALPHA, 32)
+        self.radius = 200
+        self.count_animation = 0
         pygame.draw.circle(screen, (255, 0, 0), (self.x, self.y), 10)
-        # self.rect = pygame.Rect(x - self.radius + 25, y - self.radius / 2 - 15, 2 * self.radius, 2 * self.radius)
+        self.time = time.time()
+        self.array = []
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -149,17 +155,59 @@ class ArcherTower(pygame.sprite.Sprite):
                 frame_location = (self.rect.w * i, self.rect.h * j)
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
+
     def attack(self):
         for i in mob_sprites:
-            if math.sqrt((self.x - i.rect.x) ** 2 + (self.y - i.rect.y) ** 2 ) < self.radius:
+            if math.sqrt((self.x - i.rect.x) ** 2 + (self.y - i.rect.y) ** 2) < self.radius:
                 i.health -= 1
                 self.flipped_x = self.x - i.rect.x
+                arrow = pygame.sprite.Sprite()
+                arrow.image = arrow_image
+                arrow.image = pygame.transform.scale(arrow.image, (7, 15))
+                arrow.rect = arrow.image.get_rect()
+                dirn = ((self.x - i.rect.x - 10) * 2, (self.y - i.rect.y) * 2)
+                length = math.sqrt((dirn[0]) ** 2 + (dirn[1]) ** 2)
+                if self.y - i.rect.y > 0:
+                    if i in self.array:
+                        r = 40
+                    else:
+                        r = 20
+                    # r = random.randint(10, 60)
+                else:
+                    # r = random.randint(10, 100)
+                    if i in self.array:
+                        r = 60
+                    else:
+                        r = 30
+                dirn = (dirn[0] / length * r, dirn[1] / length * r)
+                move_x, move_y = ((self.x - dirn[0]), (self.y - dirn[1]))
+                position = pygame.math.Vector2(self.x, self.y)
+                enemy_pos = pygame.math.Vector2(i.rect.x + 30, i.rect.y + 30)
+                pos = enemy_pos - position
+                y_axis = pygame.math.Vector2(0, -1)
+                angle = -y_axis.angle_to(pos)
+                arrow.image = pygame.transform.rotate(arrow.image, angle)
+                arrow.rect.x = move_x
+                arrow.rect.y = move_y - 50
+                ARROW.add(arrow)
+                ARROW.draw(screen)
+                arrow.kill()
+                if i not in self.array:
+                    self.array.append(i)
                 return True
+            if i in self.array:
+                r = self.array.index(i)
+                del self.array[r]
         return False
+
     def update(self):
-        if self.attack():
+        if self.attack() and time.time() - self.time >= 0.05:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
+            print(1)
+            self.time = time.time()
+
+
         if self.flipped_x < 0 and self.flipped:
             self.flipped = False
             for x, img in enumerate(self.frames):
@@ -168,8 +216,10 @@ class ArcherTower(pygame.sprite.Sprite):
             self.flipped = True
             for x, img in enumerate(self.frames):
                 self.frames[x] = pygame.transform.flip(img, True, False)
+
     def get(self):
         return (self.x, self.y)
+
 
 
 class BuildingPlaces(pygame.sprite.Sprite):
@@ -182,6 +232,8 @@ class BuildingPlaces(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.building_place_num = BUILDING_PLACE_COORDS.index([x, y])
+
+
 def cause_enemy():
     AnimatedSprite(load_image("walk-1.png"), 4, 1, -50, 255)
 
@@ -199,24 +251,34 @@ sprite.image = load_image("map-main.png")
 sprite.image = pygame.transform.scale(sprite.image, (1200, 705))
 sprite.rect = sprite.image.get_rect()
 all_sprites.add(sprite)
-screen.fill(pygame.Color('blue'))
-AnimatedSprite(load_image("walk-1.png"), 4, 1, -50, 255)
 
-fps = 10
+fps = 30
 running = True
 tower_building = False
 count = 0
 c = 0
+count_of_enimes = 0
+count_of_wave = 0
 SPAWNENEMY = pygame.USEREVENT + 1
-pygame.time.set_timer(SPAWNENEMY, 1000)
+pygame.time.set_timer(SPAWNENEMY, 500)
 while running:
+    time_wait = time.time() - time_now
     for event in pygame.event.get():
-        if event.type == SPAWNENEMY:
-            AnimatedSprite(load_image("walk-1.png"), 4, 1, -50, 255)
+        if event.type == SPAWNENEMY and count_of_enimes < waves[count_of_wave] and (time_wait >= 15 or (count_of_wave == 0 and time_wait >= 1)):
+            count_of_enimes += 1
+            AnimatedSprite(load_image("walk-1.png"), 4, 1, -50, 255, 3, 10, 40, 40)
+            AnimatedSprite(load_image("bat_enemy.png"), 4, 1, -50, 255, 5, 5, 60, 40)
+            if count_of_enimes == waves[count_of_wave]:
+                count_of_enimes = 0
+                if count_of_wave == len(waves) - 1:
+                    running = False
+                count_of_wave += 1
+                time_now = time.time()
+
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEMOTION:
-            print(event.pos)
+        # if event.type == pygame.MOUSEMOTION:
+        #     print(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos[0], event.pos[1]
             for sp in TOWER_BOUGHT:
