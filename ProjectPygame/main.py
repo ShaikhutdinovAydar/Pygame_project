@@ -7,7 +7,7 @@ import time
 
 def load_image(name):
     fullname = os.path.join('img', name)
-    image = pygame.image.load(fullname)
+    image = pygame.image.load(fullname).convert_alpha()
     return image
 
 
@@ -52,10 +52,11 @@ class AnimatedSprite(pygame.sprite.Sprite):
                         frame_location, self.rect.size)))
 
     def update(self):
-        global money
+        global money, health
         self.count_animation_1 += 1
         if self.kill_enemy == 3:
             money += 7
+
             self.kill()
         if self.health <= 0:
             self.kill_enemy += 1
@@ -67,6 +68,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.image = self.frames[self.cur_frame]
             self.count_animation_1 = 0
         if self.x >= 1270:
+            health -= 1
             self.kill()
 
     def move(self):
@@ -135,6 +137,7 @@ class ArcherTower(pygame.sprite.Sprite):
         self.time = time.time()
         self.time_for_array = time.time()
         self.price = 100
+        self.damage = 1
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -150,7 +153,7 @@ class ArcherTower(pygame.sprite.Sprite):
             if math.sqrt((self.x - i.rect.x) ** 2 + (
                     self.y - i.rect.y) ** 2) < self.radius:
                 self.time_for_array = time.time()
-                i.health -= 1
+                i.health -= self.damage
                 self.flipped_x = self.x - i.rect.x
 
                 arrow = pygame.sprite.Sprite()
@@ -209,15 +212,18 @@ class ArcherTower(pygame.sprite.Sprite):
     def get(self):
         return (self.x, self.y)
 
+    def upgrade_tower(self):
+        self.price += 50
+        self.damage += 1
+        self.radius += 20
 
 
 
 class BuildingPlaces(pygame.sprite.Sprite):
-    image = load_image("b_p.png")
 
     def __init__(self, x, y):
         super().__init__(TOWER_BUILDING_SPRITES)
-        self.image = BuildingPlaces.image
+        self.image = load_image("building_place.png")
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -227,12 +233,16 @@ class BuildingPlaces(pygame.sprite.Sprite):
 
 def main():
     global path, all_sprites, mob_sprites, TOWER_SPRITES, TOWER_BUILDING_SPRITES, TOWER_BOUGHT, TOWER_BOUGHT_RING,\
-        ARCHERS, ARROW, time_now, BUILDING_PLACE_COORDS, arrow_image, screen, money, health
+        ARCHERS, ARROW, BUILDING_PLACE_COORDS, arrow_image, screen, money, health
     path = [[-80, 455], [154, 455], [200, 495], [710, 507], [767, 424], [710, 298], [450, 298], [390, 205],
             [450, 110], [1250, 110]]
     money = 300
     health = 10
     pygame.init()
+
+    clock = pygame.time.Clock()
+    size = width, height = 1200, 705
+    screen = pygame.display.set_mode(size)
 
     all_sprites = pygame.sprite.Group()
     mob_sprites = pygame.sprite.Group()
@@ -256,6 +266,21 @@ def main():
     menu_bar.rect.y = 20
     information_menu_bar.add(menu_bar)
 
+    puse_pic = pygame.sprite.Sprite()
+    puse_pic.image = load_image("pause.png")
+    puse_pic.image = pygame.transform.scale(puse_pic.image, (55, 55))
+    puse_pic.rect = puse_pic.image.get_rect()
+    puse_pic.rect.x = 230
+    puse_pic.rect.y = 20
+    information_menu_bar.add(puse_pic)
+
+    puse_pic = pygame.sprite.Sprite()
+    puse_pic.image = load_image("pause.png")
+    puse_pic.image = pygame.transform.scale(puse_pic.image, (55, 55))
+    puse_pic.rect = puse_pic.image.get_rect()
+    puse_pic.rect.x = 230
+    puse_pic.rect.y = 20
+
     arrow_image = load_image("arrow.png")
     arrow_image = pygame.transform.rotate(arrow_image, 90)
 
@@ -264,9 +289,7 @@ def main():
         y = BUILDING_PLACE_COORDS[i][1]
         BuildingPlaces(x, y)
 
-    clock = pygame.time.Clock()
-    size = width, height = 1200, 705
-    screen = pygame.display.set_mode(size)
+
 
     map = pygame.sprite.Sprite()
     map.image = load_image("map-main.png")
@@ -274,87 +297,95 @@ def main():
     map.rect = map.image.get_rect()
     all_sprites.add(map)
 
+    PAUSE = False
     fps = 30
     running = True
     count_of_enimes = 0
-    count_of_wave = 1
+    count_of_wave = 0
     SPAWNENEMY = pygame.USEREVENT + 1
     pygame.time.set_timer(SPAWNENEMY, 500)
     while running:
         time_wait = time.time() - time_now
         for event in pygame.event.get():
-            if event.type == SPAWNENEMY and count_of_enimes < waves[count_of_wave - 1] and (
-                    time_wait >= 15 or (count_of_wave == 0 and time_wait >= 5)):
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == SPAWNENEMY and count_of_enimes < waves[count_of_wave] and (time_wait >= 20 or (count_of_wave == 0 and time_wait >= 5)):
                 count_of_enimes += 1
                 AnimatedSprite(load_image("bat_enemy.png"), 4, 1, -50, 255, 5, 5, 60, 40, 3)
                 AnimatedSprite(load_image("walk-1.png"), 4, 1, -50, 255, 3, 10, 40, 40, 5)
                 if count_of_enimes == waves[count_of_wave]:
                     count_of_enimes = 0
-                    if count_of_wave == len(waves) - 1:
+                    if count_of_wave == len(waves):
                         running = False
                     count_of_wave += 1
                     time_now = time.time()
-
-            if event.type == pygame.QUIT:
-                running = False
             # if event.type == pygame.MOUSEMOTION:
             #     print(event.pos)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos[0], event.pos[1]
-                for sp in TOWER_BOUGHT:
-                    if sp.rect.collidepoint(x, y) and money >= 100:
-                        for s in TOWER_BUILDING_SPRITES:
-                            if s.rect.x == sp.rect.x and s.rect.y == sp.rect.y + 15:
-                                s.kill()
-                        TOWER_BOUGHT_RING = pygame.sprite.Group()
-                        TOWER_BOUGHT = pygame.sprite.Group()
-                        tower = pygame.sprite.Sprite()
-                        tower.image = pygame.transform.scale(load_image("archer_tower.png"), (110, 110))
-                        tower.rect = tower.image.get_rect()
-                        tower.rect.x = sp.rect.x - 5
-                        tower.rect.y = sp.rect.y - 30
-                        TOWER_SPRITES.add(tower)
-                        ArcherTower(load_image("archer_2.png"), 6, 1, sp.rect.x + 25, sp.rect.y - 35)
-                        money -= 100
-                    else:
-                        TOWER_BOUGHT_RING = pygame.sprite.Group()
-                        TOWER_BOUGHT = pygame.sprite.Group()
+                if puse_pic.rect.collidepoint(x, y) and not PAUSE:
+                    PAUSE = True
+                elif puse_pic.rect.collidepoint(x, y) and PAUSE:
+                    PAUSE = False
 
-                for sp in TOWER_BUILDING_SPRITES:
-                    if sp.rect.collidepoint(x, y):
-                        tower_building = sp.building_place_num
-                        TOWER_BOUGHT_RING = pygame.sprite.Group()
-                        TOWER_BOUGHT = pygame.sprite.Group()
+                if not PAUSE:
 
-                        buy_tower_ring = pygame.sprite.Sprite()
-                        buy_tower_ring.image = pygame.transform.scale(load_image("tower-builder.png"), (100, 100))
+                    for sp in TOWER_BOUGHT:
+                        if sp.rect.collidepoint(x, y) and money >= 100:
+                            for s in TOWER_BUILDING_SPRITES:
+                                if s.rect.x == sp.rect.x and s.rect.y == sp.rect.y + 15:
+                                    s.kill()
+                            TOWER_BOUGHT_RING = pygame.sprite.Group()
+                            TOWER_BOUGHT = pygame.sprite.Group()
+                            tower = pygame.sprite.Sprite()
+                            tower.image = pygame.transform.scale(load_image("archer_tower.png"), (110, 110))
+                            tower.rect = tower.image.get_rect()
+                            tower.rect.x = sp.rect.x - 5
+                            tower.rect.y = sp.rect.y - 30
+                            TOWER_SPRITES.add(tower)
+                            ArcherTower(load_image("archer_2.png"), 6, 1, sp.rect.x + 25, sp.rect.y - 35)
+                            money -= 100
+                        else:
+                            TOWER_BOUGHT_RING = pygame.sprite.Group()
+                            TOWER_BOUGHT = pygame.sprite.Group()
 
-                        buy_tower_ring.rect = buy_tower_ring.image.get_rect()
-                        buy_tower_ring.rect.x = sp.rect.x
-                        buy_tower_ring.rect.y = sp.rect.y - 15
-                        TOWER_BOUGHT_RING.add(buy_tower_ring)
+                    for sp in TOWER_BUILDING_SPRITES:
+                        if sp.rect.collidepoint(x, y):
+                            TOWER_BOUGHT_RING = pygame.sprite.Group()
+                            TOWER_BOUGHT = pygame.sprite.Group()
 
-                        buy_tower = pygame.sprite.Sprite()
-                        buy_tower.image = pygame.transform.scale(load_image("archer_tower_buy.png"), (40, 40))
-                        buy_tower.rect = buy_tower.image.get_rect()
-                        buy_tower.rect.x = sp.rect.x
-                        buy_tower.rect.y = sp.rect.y - 15
-                        TOWER_BOUGHT.add(buy_tower)
+                            buy_tower_ring = pygame.sprite.Sprite()
+                            buy_tower_ring.image = pygame.transform.scale(load_image("tower-builder.png"), (100, 100))
+
+                            buy_tower_ring.rect = buy_tower_ring.image.get_rect()
+                            buy_tower_ring.rect.x = sp.rect.x
+                            buy_tower_ring.rect.y = sp.rect.y - 15
+                            TOWER_BOUGHT_RING.add(buy_tower_ring)
+
+                            buy_tower = pygame.sprite.Sprite()
+                            buy_tower.image = pygame.transform.scale(load_image("archer_tower_buy.png"), (40, 40))
+                            buy_tower.rect = buy_tower.image.get_rect()
+                            buy_tower.rect.x = sp.rect.x
+                            buy_tower.rect.y = sp.rect.y - 15
+                            TOWER_BOUGHT.add(buy_tower)
 
         all_sprites.draw(screen)
         information_menu_bar.draw(screen)
         mob_sprites.draw(screen)
         TOWER_BUILDING_SPRITES.draw(screen)
-        TOWER_BOUGHT_RING.draw(screen)
-        TOWER_BOUGHT.draw(screen)
         TOWER_SPRITES.draw(screen)
         ARCHERS.draw(screen)
-        for m in mob_sprites:
-            m.move()
-            m.update()
+        TOWER_BOUGHT_RING.draw(screen)
+        TOWER_BOUGHT.draw(screen)
+
+
+        if not PAUSE:
+            for m in mob_sprites:
+                m.move()
+                m.update()
         for a in ARCHERS:
-            a.update()
-            pygame.draw.circle(screen, (255, 0, 0, 50), a.get(), 170, 1)
+            if not PAUSE:
+                a.update()
         font = pygame.font.SysFont('serif', 18)
         text = font.render(f"{health}", 1, (255, 55, 0))
         text_x = 110
@@ -363,7 +394,7 @@ def main():
         text = font.render(f"{money}", 1, (255, 255, 0))
         text_y = 60
         screen.blit(text, (text_x, text_y))
-        text = font.render(f"{count_of_wave} / {len(waves)}", 1, (255, 255, 0))
+        text = font.render(f"{count_of_wave + 1} / {len(waves)}", 1, (255, 255, 0))
         text_y = 95
         screen.blit(text, (text_x, text_y))
 
