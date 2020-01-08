@@ -9,7 +9,10 @@ clock = pygame.time.Clock()
 size = width, height = 1200, 705
 screen = pygame.display.set_mode(size)
 resume = True
-
+file = "background_music.mp3"
+pygame.mixer.init()
+pygame.mixer.music.load(file)
+pygame.mixer.music.play(-1)
 
 # function for loading images
 def load_image(name):
@@ -384,6 +387,11 @@ def main():
     # spawn enemies
     SPAWNENEMY = pygame.USEREVENT + 1
     pygame.time.set_timer(SPAWNENEMY, 500)
+
+    # creating music
+
+
+
 
     # start game
     while running:
