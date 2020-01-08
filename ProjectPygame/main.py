@@ -14,6 +14,7 @@ pygame.mixer.init()
 pygame.mixer.music.load(file)
 pygame.mixer.music.play(-1)
 
+
 # function for loading images
 def load_image(name):
     fullname = os.path.join('img', name)
@@ -388,11 +389,6 @@ def main():
     SPAWNENEMY = pygame.USEREVENT + 1
     pygame.time.set_timer(SPAWNENEMY, 500)
 
-    # creating music
-
-
-
-
     # start game
     while running:
         time_wait = time.time() - time_now
@@ -413,7 +409,7 @@ def main():
                     count_of_wave += 1
                     time_now = time.time()
             if count_of_wave == len(waves) - 1 and len(mob_sprites) == 0:
-                    return
+                return
             # mousebutton events
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos[0], event.pos[1]
